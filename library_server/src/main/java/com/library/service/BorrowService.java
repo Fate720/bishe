@@ -117,7 +117,10 @@ public class BorrowService {
      * 查询所有借阅记录-管理员（使用 JOIN FETCH 避免 N+1）
      */
     @Transactional(readOnly = true)
-    public Page<BorrowRecord> getAllBorrowRecords(Pageable pageable) {
+    public Page<BorrowRecord> getAllBorrowRecords(Pageable pageable, Integer status) {
+        if (status != null) {
+            return borrowRecordRepository.findByStatus(status, pageable);
+        }
         return borrowRecordRepository.findAllWithDetails(pageable);
     }
 }

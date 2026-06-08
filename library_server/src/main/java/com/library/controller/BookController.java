@@ -28,14 +28,18 @@ public class BookController {
     }
     
     @GetMapping("/search")
-    @Operation(summary = "搜索图书", description = "根据书名、作者、ISBN、出版社、分类进行模糊搜索，支持分页")
+    @Operation(summary = "搜索图书支持关键字和多条件搜索", description = "根据书名、作者、ISBN、出版社、分类进行模糊搜索，支持分页")
     public Result<Page<Book>> search(
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String author,
             @RequestParam(required = false) String isbn,
             @RequestParam(required = false) String publisher,
             @RequestParam(required = false) String category,
             @PageableDefault(size = 10) Pageable pageable) {
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            return Result.success(bookService.searchByKeyword(keyword, pageable));
+        }
         return Result.success(bookService.searchBooks(title, author, isbn, publisher, category, pageable));
     }
     

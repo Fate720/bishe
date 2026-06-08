@@ -1,5 +1,6 @@
 package com.library.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
@@ -24,11 +25,11 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "用户名不能为空")
+    @NotBlank(message = "\u7528\u6237\u540d\u4e0d\u80fd\u4e3a\u7a7a")
     @Column(unique = true, nullable = false, length = 50)
     private String username;
 
-    @NotBlank(message = "密码不能为空")
+    @NotBlank(message = "\u5bc6\u7801\u4e0d\u80fd\u4e3a\u7a7a")
     @Column(nullable = false)
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
@@ -37,7 +38,7 @@ public class User {
 
     private String phone;
 
-    private Integer status; // 0:禁用 1:启用
+    private Integer status;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -47,9 +48,11 @@ public class User {
     )
     private Set<Role> roles = new HashSet<>();
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     @Column(updatable = false)
     private LocalDateTime createdTime;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private LocalDateTime updatedTime;
 
     @PrePersist

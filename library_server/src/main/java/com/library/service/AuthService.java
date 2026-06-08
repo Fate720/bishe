@@ -1,5 +1,6 @@
 package com.library.service;
 
+import com.library.dto.PasswordChangeRequest;
 import com.library.dto.RegisterRequest;
 import com.library.entity.Permission;
 import com.library.entity.Role;
@@ -96,4 +97,22 @@ public class AuthService {
         
         return userRepository.save(user);
     }
+    @Transactional
+    public void changePassword(PasswordChangeRequest request) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new BusinessException("用户不存在"));
+
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new BusinessException(400, "旧密码不正确");
+        }
+
+        if (request.getOldPassword().equals(request.getNewPassword())) {
+            throw new BusinessException(400, "新密码不能与旧密码相同");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
+
 }

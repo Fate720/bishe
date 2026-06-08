@@ -26,7 +26,8 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
     Page<BorrowRecord> findByUserIdWithDetails(@Param("userId") Long userId, Pageable pageable);
 
     /** JOIN FETCH 查询所有借阅记录（含图书和用户信息），避免 N+1 查询 */
-    @Query("SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user")
+    @Query(value = "SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user",
+           countQuery = "SELECT COUNT(br) FROM BorrowRecord br")
     Page<BorrowRecord> findAllWithDetails(Pageable pageable);
 
     /** 统计用户当前在借数量 */
@@ -34,6 +35,11 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
     long countCurrentBorrowsByUserId(@Param("userId") Long userId);
 
     /** 查询已过期但未更新的借阅记录 */
+    /** JOIN FETCH 查询指定状态的借阅记录 */
+    @Query(value = "SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user WHERE br.status = :status",
+           countQuery = "SELECT COUNT(br) FROM BorrowRecord br WHERE br.status = :status")
+    Page<BorrowRecord> findByStatus(@Param("status") Integer status, Pageable pageable);
+
     @Query("SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user WHERE br.status = 0 AND br.dueDate < :now")
     List<BorrowRecord> findOverdueRecords(@Param("now") LocalDate now);
 }

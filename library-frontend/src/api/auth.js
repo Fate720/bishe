@@ -14,3 +14,7 @@ export function register(data) {
 export function getCurrentUser() {
   return request.get('/auth/me')
 }
+// 修改密码
+export function changePassword(data) {
+  return request.put('/auth/password', data)
+}

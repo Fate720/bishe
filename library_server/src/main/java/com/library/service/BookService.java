@@ -54,6 +54,27 @@ public class BookService {
     
 
     
+    /**
+     * 根据关键字搜索图书支持按书名、作者、ISBN、ID搜索
+     */
+    public Page<Book> searchByKeyword(String keyword, Pageable pageable) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return bookRepository.findAll(pageable);
+        }
+        String pattern = "%" + keyword.trim() + "%";
+        return bookRepository.findAll((root, query, cb) -> {
+            jakarta.persistence.criteria.Predicate titleLike = cb.like(root.get("title"), pattern);
+            jakarta.persistence.criteria.Predicate authorLike = cb.like(root.get("author"), pattern);
+            jakarta.persistence.criteria.Predicate isbnLike = cb.like(root.get("isbn"), pattern);
+            jakarta.persistence.criteria.Predicate result = cb.or(titleLike, authorLike, isbnLike);
+            try {
+                Long id = Long.parseLong(keyword.trim());
+                result = cb.or(result, cb.equal(root.get("id"), id));
+            } catch (NumberFormatException ignored) {}
+            return result;
+        }, pageable);
+    }
+
     public Book getById(Long id) {
         return bookRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("图书不存在"));

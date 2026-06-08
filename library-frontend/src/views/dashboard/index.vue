@@ -2,7 +2,7 @@
   <div class="dashboard-container">
     <el-row :gutter="20">
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
+        <el-card shadow="hover" class="stat-card" style="cursor: pointer" @click="router.push('/book')">
           <div class="stat-content">
             <div class="stat-icon" style="background: #409EFF">
               <el-icon :size="30"><Reading /></el-icon>
@@ -16,7 +16,7 @@
       </el-col>
 
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
+        <el-card shadow="hover" class="stat-card" style="cursor: pointer" @click="router.push('/borrow')">
           <div class="stat-content">
             <div class="stat-icon" style="background: #67C23A">
               <el-icon :size="30"><Tickets /></el-icon>
@@ -30,7 +30,7 @@
       </el-col>
 
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
+        <el-card shadow="hover" class="stat-card" style="cursor: pointer" @click="router.push('/borrow?status=0')">
           <div class="stat-content">
             <div class="stat-icon" style="background: #E6A23C">
               <el-icon :size="30"><Clock /></el-icon>
@@ -44,7 +44,7 @@
       </el-col>
 
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
+        <el-card shadow="hover" class="stat-card" style="cursor: pointer" @click="router.push('/reader')">
           <div class="stat-content">
             <div class="stat-icon" style="background: #F56C6C">
               <el-icon :size="30"><User /></el-icon>
@@ -92,7 +92,7 @@
           <div v-if="stats.activeBorrowCount > 0" class="overdue-tip">
             <el-alert
               title="借阅提醒"
-              :description="`您当前有 ${stats.activeBorrowCount} 本图书在借中，记得按时归还哦！`"
+              :description="isAdmin ? `全系统共有 ${stats.activeBorrowCount} 本图书在借中` : `您当前有 ${stats.activeBorrowCount} 本图书在借中，记得按时归还哦！`"
               type="info"
               :closable="false"
               show-icon
@@ -106,9 +106,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Reading, Tickets, Clock, User } from '@element-plus/icons-vue'
 import { getStatistics } from '@/api/statistics'
 
+const router = useRouter()
 const isAdmin = sessionStorage.getItem('isAdmin') === 'true'
 
 const stats = ref({

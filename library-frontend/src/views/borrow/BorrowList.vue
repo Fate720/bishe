@@ -7,11 +7,57 @@
         <el-tab-pane label="借阅图书" name="borrow">
           <el-card>
             <el-form :model="borrowForm" label-width="100px">
-              <el-form-item label="图书ID">
-                <el-input-number v-model="borrowForm.bookId" :min="1" style="width: 200px" />
+              <el-form-item label="搜索图书">
+                <el-select
+                  v-model="borrowForm.selectedBookId"
+                  filterable
+                  remote
+                  reserve-keyword
+                  clearable
+                  :remote-method="searchForBorrow"
+                  :loading="searchLoading"
+                  placeholder="输入书名、作者或ISBN搜索图书"
+                  style="width: 100%"
+                  @change="onBookSelected"
+                >
+                  <el-option
+                    v-for="book in searchResults"
+                    :key="book.id"
+                    :label="book.title + ' (' + book.author + ')'"
+                    :value="book.id"
+                  >
+                    <div style="display: flex; justify-content: space-between">
+                      <span>{{ book.title }}<span style="color: #909399; margin-left: 8px">{{ book.author }}</span></span>
+                      <span style="color: #c0c4cc; font-size: 12px">{{ book.isbn || '' }}</span>
+                    </div>
+                  </el-option>
+                </el-select>
               </el-form-item>
+
+              <!-- 图书详情 -->
+              <el-form-item v-if="selectedBook" label="图书信息">
+                <el-card shadow="never" style="width: 100%; background: #f5f7fa">
+                  <el-descriptions :column="2" border size="small">
+                    <el-descriptions-item label="书名" :span="2">{{ selectedBook.title }}</el-descriptions-item>
+                    <el-descriptions-item label="作者">{{ selectedBook.author }}</el-descriptions-item>
+                    <el-descriptions-item label="ISBN">{{ selectedBook.isbn || '无' }}</el-descriptions-item>
+                    <el-descriptions-item label="出版社">{{ selectedBook.publisher || '无' }}</el-descriptions-item>
+                    <el-descriptions-item label="库存">
+                      <el-tag :type="selectedBook.stock > 0 ? 'success' : 'danger'" size="small">
+                        {{ selectedBook.stock > 0 ? selectedBook.stock + ' 本可借' : '暂无库存' }}
+                      </el-tag>
+                    </el-descriptions-item>
+                  </el-descriptions>
+                </el-card>
+              </el-form-item>
+
               <el-form-item>
-                <el-button type="primary" @click="handleBorrow" :loading="borrowLoading">
+                <el-button
+                  type="primary"
+                  @click="handleBorrow"
+                  :loading="borrowLoading"
+                  :disabled="!borrowForm.selectedBookId || (selectedBook && selectedBook.stock <= 0)"
+                >
                   确认借阅
                 </el-button>
               </el-form-item>
@@ -39,7 +85,7 @@
                   <el-option
                     v-for="record in unreturnedRecords"
                     :key="record.id"
-                    :label="`记录${record.id} - ${record.bookTitle} (借阅日期：${record.borrowDate})`"
+                    :label="record.bookTitle + ' (作者: ' + (record.bookAuthor || '未知') + ' | ISBN: ' + (record.bookIsbn || '无') + ' | 借阅: ' + record.borrowDate + ')'"
                     :value="record.id"
                   />
                 </el-select>
@@ -56,9 +102,18 @@
         <!-- 我的借阅记录 -->
         <el-tab-pane label="我的借阅记录" name="list">
           <el-card>
-            <el-table :data="records" v-loading="loading" style="width: 100%">
+            <el-table :data="records" v-loading="loading" style="width: 100%" @sort-change="handleSortChange">
               <el-table-column prop="id" label="记录ID" width="80" />
-              <el-table-column label="图书" prop="bookTitle" />
+              <el-table-column label="图书信息" min-width="200">
+                <template #default="{ row }">
+                  <div>
+                    <div style="font-weight: 500">{{ row.bookTitle }}</div>
+                    <div style="font-size: 12px; color: #909399; margin-top: 2px">
+                      {{ row.bookAuthor || '' }}{{ row.bookAuthor && row.bookIsbn ? ' | ' : '' }}{{ row.bookIsbn || '' }}
+                    </div>
+                  </div>
+                </template>
+              </el-table-column>
               <el-table-column prop="borrowDate" label="借阅日期" width="120" />
               <el-table-column prop="dueDate" label="应还日期" width="120" />
               <el-table-column prop="returnDate" label="归还日期" width="120" />
@@ -70,9 +125,9 @@
               </el-table-column>
               <el-table-column label="操作" width="120">
                 <template #default="{ row }">
-                  <el-button 
-                    v-if="row.status === 0" 
-                    size="small" 
+                  <el-button
+                    v-if="row.status === 0"
+                    size="small"
                     type="success"
                     @click="handleReturnById(row.id)"
                   >
@@ -104,10 +159,27 @@
         <div class="header">
           <h3>所有借阅记录</h3>
         </div>
-        <el-table :data="allRecords" v-loading="loading" style="width: 100%">
+        <div style="margin-bottom: 16px">
+            <span style="margin-right: 12px; font-size: 14px; color: #606266">状态筛选：</span>
+            <el-radio-group v-model="statusFilter" @change="onStatusFilterChange">
+              <el-radio-button :label="null">全部</el-radio-button>
+              <el-radio-button :label="0">借阅中</el-radio-button>
+              <el-radio-button :label="1">已归还</el-radio-button>
+            </el-radio-group>
+          </div>
+        <el-table :data="allRecords" v-loading="loading" style="width: 100%" @sort-change="handleSortChange">
           <el-table-column prop="id" label="记录ID" width="80" />
-          <el-table-column label="借阅人" prop="username" />
-          <el-table-column label="图书" prop="bookTitle" />
+          <el-table-column label="借阅人" prop="username" width="100" sortable="custom" />
+          <el-table-column label="图书信息" min-width="200">
+            <template #default="{ row }">
+              <div>
+                <div style="font-weight: 500">{{ row.bookTitle }}</div>
+                <div style="font-size: 12px; color: #909399; margin-top: 2px">
+                  {{ row.bookAuthor || '' }}{{ row.bookAuthor && row.bookIsbn ? ' | ' : '' }}{{ row.bookIsbn || '' }}
+                </div>
+              </div>
+            </template>
+          </el-table-column>
           <el-table-column prop="borrowDate" label="借阅日期" width="120" />
           <el-table-column prop="dueDate" label="应还日期" width="120" />
           <el-table-column prop="returnDate" label="归还日期" width="120" />
@@ -115,7 +187,7 @@
             <template #default="{ row }">
               <el-tag v-if="row.status === 0" type="warning">借阅中</el-tag>
               <el-tag v-else-if="row.status === 1" type="success">已归还</el-tag>
-              <el-tag v-else type="danger">已逾期</el-tag>
+              <el-tag v-else type="danger">已过期</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="100" fixed="right">
@@ -150,42 +222,92 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { borrowBook, returnBook, getMyBorrows, getAllBorrows } from '@/api/borrow'
+import { searchBooks } from '@/api/book'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
+const route = useRoute()
 const isAdmin = sessionStorage.getItem('isAdmin') === 'true'
 const activeTab = ref('borrow')
 const loading = ref(false)
 const borrowLoading = ref(false)
 const returnLoading = ref(false)
+const searchLoading = ref(false)
+const sortProp = ref('id')
+const sortOrder = ref('descending')
+const searchResults = ref([])
+const selectedBook = ref(null)
 
 const borrowForm = reactive({
-  bookId: 1
+  selectedBookId: null
 })
 
 const returnForm = reactive({
   recordId: null
 })
 
-// 未归还的记录列表
 const unreturnedRecords = ref([])
-
 const records = ref([])
 const allRecords = ref([])
 const total = ref(0)
 const pageNum = ref(1)
 const pageSize = ref(10)
+const bookDetailCache = ref({})
+const statusFilter = ref(null)
+
+const searchForBorrow = async (query) => {
+  if (!query || query.trim() === '') {
+    searchResults.value = []
+    return
+  }
+  searchLoading.value = true
+  try {
+    const res = await searchBooks({ keyword: query, size: 10 })
+    searchResults.value = res.content || []
+  } catch (error) {
+    console.error('搜索失败:', error)
+    searchResults.value = []
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+const onBookSelected = async (bookId) => {
+  if (!bookId) {
+    selectedBook.value = null
+    return
+  }
+  if (bookDetailCache.value[bookId]) {
+    selectedBook.value = bookDetailCache.value[bookId]
+    return
+  }
+  try {
+    const { getBook } = await import('@/api/book')
+    const book = await getBook(bookId)
+    selectedBook.value = book
+    bookDetailCache.value[bookId] = book
+  } catch (error) {
+    console.error('获取图书详情失败:', error)
+    selectedBook.value = null
+  }
+}
 
 const handleBorrow = async () => {
+  if (!borrowForm.selectedBookId) {
+    ElMessage.warning('请先搜索并选择要借阅的图书')
+    return
+  }
   borrowLoading.value = true
   try {
-    await borrowBook(borrowForm.bookId)
+    await borrowBook(borrowForm.selectedBookId)
     ElMessage.success('借阅成功')
+    borrowForm.selectedBookId = null
+    selectedBook.value = null
+    searchResults.value = []
     fetchRecords()
   } catch (error) {
-    console.error(error)
-    // 显示具体错误信息给用户
-    ElMessage.error(error.response?.data?.message || error.message || '借阅失败')
+    console.error('借阅失败:', error)
   } finally {
     borrowLoading.value = false
   }
@@ -196,22 +318,14 @@ const handleReturn = async () => {
     ElMessage.warning('请选择要归还的记录')
     return
   }
-  
   returnLoading.value = true
   try {
     await returnBook(returnForm.recordId)
     ElMessage.success('归还成功')
-    returnForm.recordId = null // 清空选择
-    // 根据角色刷新数据
-    if (isAdmin) {
-      fetchAllRecords()
-    } else {
-      fetchRecords()
-    }
+    returnForm.recordId = null
+    if (isAdmin) { fetchAllRecords() } else { fetchRecords() }
   } catch (error) {
-    console.error(error)
-    // 显示具体错误信息给用户
-    ElMessage.error(error.response?.data?.message || error.message || '归还失败')
+    console.error('归还失败:', error)
   } finally {
     returnLoading.value = false
   }
@@ -219,21 +333,13 @@ const handleReturn = async () => {
 
 const handleReturnById = async (id) => {
   try {
-    await ElMessageBox.confirm('确认归还该图书吗？', '提示', {
-      type: 'warning'
-    })
+    await ElMessageBox.confirm('确认归还该图书吗？', '提示', { type: 'warning' })
     await returnBook(id)
     ElMessage.success('归还成功')
-    // 根据角色刷新数据
-    if (isAdmin) {
-      fetchAllRecords()
-    } else {
-      fetchRecords()
-    }
+    if (isAdmin) { fetchAllRecords() } else { fetchRecords() }
   } catch (error) {
     if (error !== 'cancel') {
-      console.error(error)
-      ElMessage.error(error.response?.data?.message || error.message || '归还失败')
+      console.error('归还失败:', error)
     }
   }
 }
@@ -241,30 +347,41 @@ const handleReturnById = async (id) => {
 const fetchRecords = async () => {
   loading.value = true
   try {
-    const res = await getMyBorrows({
-      page: pageNum.value - 1,
-      size: pageSize.value
-    })
+    const res = await getMyBorrows({ page: pageNum.value - 1, size: pageSize.value })
     records.value = res.content
     total.value = res.totalElements
-    // 更新未归还记录列表
-    unreturnedRecords.value = res.content.filter(record => record.status === 0)
+    unreturnedRecords.value = res.content.filter(r => r.status === 0)
   } catch (error) {
     console.error(error)
   } finally {
     loading.value = false
   }
+}
+
+const handleSortChange = function(column) {
+  if (column && column.prop && column.order) {
+    sortProp.value = column.prop
+    sortOrder.value = column.order
+  } else {
+    sortProp.value = 'id'
+    sortOrder.value = 'descending'
+  }
+  if (isAdmin) { fetchAllRecords() } else { fetchRecords() }
 }
 
 const fetchAllRecords = async () => {
   loading.value = true
   try {
-    const res = await getAllBorrows({
-      page: pageNum.value - 1,
-      size: pageSize.value
-    })
+    var sortMapping = { 'id': 'id', 'bookTitle': 'book.title', 'username': 'user.username' }
+    var sortField = sortMapping[sortProp.value] || sortProp.value
+    var sortDir = sortOrder.value === 'descending' ? 'desc' : 'asc'
+    var params = { page: pageNum.value - 1, size: pageSize.value }
+    if (sortField) { params.sort = sortField + ',' + sortDir }
+    if (statusFilter.value !== null) { params.status = statusFilter.value }
+    const res = await getAllBorrows(params)
     allRecords.value = res.content
     total.value = res.totalElements
+    unreturnedRecords.value = res.content.filter(function(r) { return r.status === 0 })
   } catch (error) {
     console.error(error)
   } finally {
@@ -272,12 +389,15 @@ const fetchAllRecords = async () => {
   }
 }
 
+const onStatusFilterChange = function() {
+  fetchAllRecords()
+}
+
 onMounted(() => {
-  if (isAdmin) {
-    fetchAllRecords()
-  } else {
-    fetchRecords()
+  if (route.query.status) {
+    statusFilter.value = parseInt(route.query.status)
   }
+  if (isAdmin) { fetchAllRecords() } else { fetchRecords() }
 })
 </script>
 
@@ -285,7 +405,6 @@ onMounted(() => {
 .borrow-container {
   padding: 20px;
 }
-
 .pagination {
   margin-top: 20px;
   display: flex;

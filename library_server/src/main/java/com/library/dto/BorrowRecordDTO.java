@@ -16,6 +16,8 @@ public class BorrowRecordDTO {
     private String username;
     private Long bookId;
     private String bookTitle;
+    private String bookAuthor;
+    private String bookIsbn;
     private LocalDate borrowDate;
     private LocalDate returnDate;
     private LocalDate dueDate;
@@ -28,6 +30,8 @@ public class BorrowRecordDTO {
         dto.setUsername(record.getUser().getUsername());
         dto.setBookId(record.getBook().getId());
         dto.setBookTitle(record.getBook().getTitle());
+        dto.setBookAuthor(record.getBook().getAuthor());
+        dto.setBookIsbn(record.getBook().getIsbn());
         dto.setBorrowDate(record.getBorrowDate());
         dto.setReturnDate(record.getReturnDate());
         dto.setDueDate(record.getDueDate());

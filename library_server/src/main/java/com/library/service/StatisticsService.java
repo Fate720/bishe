@@ -35,7 +35,7 @@ public class StatisticsService {
         stats.put("bookCount", bookRepository.count());
         stats.put("userCount", userRepository.count());
         stats.put("borrowCount", borrowRecordRepository.count());
-        stats.put("activeBorrowCount", borrowRecordRepository.countByStatus(0));
+        // activeBorrowCount will be set below after user/role check
         
         // 获取当前用户信息
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -48,12 +48,14 @@ public class StatisticsService {
         List<BorrowRecord> recentRecords;
         
         if (isAdmin) {
+            stats.put("activeBorrowCount", borrowRecordRepository.countByStatus(0));
             // 管理员：获取所有用户的最近借阅记录
             recentRecords = borrowRecordRepository.findAll(topFive).getContent();
         } else {
-            // 普通用户：只获取自己的最近借阅记录
             User user = userRepository.findByUsername(username)
                     .orElseThrow(() -> new BusinessException("用户不存在"));
+            stats.put("activeBorrowCount", borrowRecordRepository.countCurrentBorrowsByUserId(user.getId()));
+            // 普通用户：只获取自己的最近借阅记录
             recentRecords = borrowRecordRepository.findByUser(user, topFive).getContent();
         }
         
