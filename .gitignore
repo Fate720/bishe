@@ -1,0 +1,32 @@
+﻿# Java
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.log
+*.gz
+
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+library-frontend/node_modules/
+.vite/
+
+# Temp
+lo_profile/
+
+# Project build output
+library_server/target/
