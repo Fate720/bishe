@@ -22,6 +22,7 @@ public class BorrowRecordDTO {
     private LocalDate returnDate;
     private LocalDate dueDate;
     private Integer status;
+    private Boolean overdue;
 
     public static BorrowRecordDTO fromEntity(BorrowRecord record) {
         BorrowRecordDTO dto = new BorrowRecordDTO();
@@ -36,6 +37,7 @@ public class BorrowRecordDTO {
         dto.setReturnDate(record.getReturnDate());
         dto.setDueDate(record.getDueDate());
         dto.setStatus(record.getStatus());
+        dto.setOverdue(record.isOverdue());
         return dto;
     }
 }

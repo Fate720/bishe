@@ -30,11 +30,10 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
            countQuery = "SELECT COUNT(br) FROM BorrowRecord br")
     Page<BorrowRecord> findAllWithDetails(Pageable pageable);
 
-    /** 统计用户当前在借数量 */
+    /** 统计用户当前在借数量*/
     @Query("SELECT COUNT(br) FROM BorrowRecord br WHERE br.user.id = :userId AND br.status = 0")
     long countCurrentBorrowsByUserId(@Param("userId") Long userId);
 
-    /** 查询已过期但未更新的借阅记录 */
     /** JOIN FETCH 查询指定状态的借阅记录 */
     @Query(value = "SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user WHERE br.status = :status",
            countQuery = "SELECT COUNT(br) FROM BorrowRecord br WHERE br.status = :status")
@@ -42,4 +41,8 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
 
     @Query("SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user WHERE br.status = 0 AND br.dueDate < :now")
     List<BorrowRecord> findOverdueRecords(@Param("now") LocalDate now);
+
+    /** 查询指定用户的逾期记录（按需更新）*/
+    @Query("SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user WHERE br.user.id = :userId AND br.status = 0 AND br.dueDate < :now")
+    List<BorrowRecord> findOverdueRecordsByUserId(@Param("userId") Long userId, @Param("now") LocalDate now);
 }

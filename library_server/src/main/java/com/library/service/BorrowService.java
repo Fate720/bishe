@@ -32,46 +32,37 @@ public class BorrowService {
      */
     @Transactional
     public BorrowRecord borrowBook(Long bookId) {
-        // 获取当前登录用户
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
 
-        // 检查图书是否存在
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new BusinessException("图书不存在"));
 
-        // 检查库存
         if (book.getStock() == null || book.getStock() <= 0) {
             throw new BusinessException("图书库存不足");
         }
 
-        // 检查用户身份状态
         if (user.getStatus() == null || user.getStatus() != 1) {
             throw new BusinessException("账户已被禁用，无法借阅");
         }
 
-        // 检查借阅数量限制
         long currentBorrowCount = borrowRecordRepository.countCurrentBorrowsByUserId(user.getId());
         if (currentBorrowCount >= MAX_BORROW_COUNT) {
             throw new BusinessException("借阅数量已达上限(" + MAX_BORROW_COUNT + "本)，请先归还部分图书");
         }
 
-        // 检查是否已借阅未归还
         List<BorrowRecord> activeBorrows = borrowRecordRepository.findByUserIdAndStatus(user.getId(), 0);
         if (activeBorrows.stream().anyMatch(r -> r.getBook().getId().equals(bookId))) {
-            throw new BusinessException("您已借阅该图书且未归还");
+            throw new BusinessException("您已借阅该书且未归还");
         }
 
-        // 创建借阅记录
         BorrowRecord record = new BorrowRecord();
         record.setUser(user);
         record.setBook(book);
         record.setBorrowDate(LocalDate.now());
-        record.setDueDate(LocalDate.now().plusDays(30)); // 借阅期限30天
-        record.setStatus(0); // 借阅中
-
-        // 减少库存
+        record.setDueDate(LocalDate.now().plusDays(30));
+        record.setStatus(0);
         book.setStock(book.getStock() - 1);
         bookRepository.save(book);
 
@@ -86,14 +77,13 @@ public class BorrowService {
         BorrowRecord record = borrowRecordRepository.findById(borrowRecordId)
                 .orElseThrow(() -> new BusinessException("借阅记录不存在"));
         
-        if (record.getStatus() != 0) {
+        if (record.getStatus() != 0 && record.getStatus() != 2) {
             throw new BusinessException("该图书已归还");
         }
         
         record.setReturnDate(LocalDate.now());
-        record.setStatus(1); // 已归还
+        record.setStatus(1);
         
-        // 恢复库存
         Book book = record.getBook();
         book.setStock(book.getStock() + 1);
         bookRepository.save(book);
@@ -110,6 +100,8 @@ public class BorrowService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
 
+        markOverdueRecords(user.getId());
+        
         return borrowRecordRepository.findByUserIdWithDetails(user.getId(), pageable);
     }
 
@@ -118,9 +110,29 @@ public class BorrowService {
      */
     @Transactional(readOnly = true)
     public Page<BorrowRecord> getAllBorrowRecords(Pageable pageable, Integer status) {
+        markOverdueRecords(null);
+        
         if (status != null) {
             return borrowRecordRepository.findByStatus(status, pageable);
         }
         return borrowRecordRepository.findAllWithDetails(pageable);
+    }
+    
+    /**
+     * 标记逾期记录（按需更新）
+     */
+    private void markOverdueRecords(Long userId) {
+        List<BorrowRecord> overdueRecords;
+        if (userId != null) {
+            overdueRecords = borrowRecordRepository.findOverdueRecordsByUserId(userId, LocalDate.now());
+        } else {
+            overdueRecords = borrowRecordRepository.findOverdueRecords(LocalDate.now());
+        }
+        if (!overdueRecords.isEmpty()) {
+            for (BorrowRecord record : overdueRecords) {
+                record.setStatus(2);
+            }
+            borrowRecordRepository.saveAll(overdueRecords);
+        }
     }
 }

@@ -69,6 +69,15 @@
         <el-tab-pane label="归还图书" name="return">
           <el-card>
             <el-alert
+              v-if="overdueRecords.length > 0"
+              title="逾期提醒"
+              type="error"
+              :description="`您有 ${overdueRecords.length} 本图书已逾期，请尽快归还！`"
+              :closable="false"
+              show-icon
+              style="margin-bottom: 20px"
+            />
+            <el-alert
               title="提示"
               type="info"
               description="请选择要归还的借阅记录"
@@ -85,7 +94,7 @@
                   <el-option
                     v-for="record in unreturnedRecords"
                     :key="record.id"
-                    :label="record.bookTitle + ' (作者: ' + (record.bookAuthor || '未知') + ' | ISBN: ' + (record.bookIsbn || '无') + ' | 借阅: ' + record.borrowDate + ')'"
+                    :label="buildReturnOptionLabel(record)"
                     :value="record.id"
                   />
                 </el-select>
@@ -102,6 +111,15 @@
         <!-- 我的借阅记录 -->
         <el-tab-pane label="我的借阅记录" name="list">
           <el-card>
+            <el-alert
+              v-if="overdueRecords.length > 0"
+              title="逾期提醒"
+              type="error"
+              :description="`您有 ${overdueRecords.length} 本图书已逾期，请尽快归还！`"
+              :closable="false"
+              show-icon
+              style="margin-bottom: 16px"
+            />
             <el-table :data="records" v-loading="loading" style="width: 100%" @sort-change="handleSortChange">
               <el-table-column prop="id" label="记录ID" width="80" />
               <el-table-column label="图书信息" min-width="200">
@@ -119,16 +137,17 @@
               <el-table-column prop="returnDate" label="归还日期" width="120" />
               <el-table-column label="状态" width="100">
                 <template #default="{ row }">
-                  <el-tag v-if="row.status === 0" type="warning">借阅中</el-tag>
+                  <el-tag v-if="isOverdue(row)" type="danger">逾期</el-tag>
+                  <el-tag v-else-if="row.status === 0" type="warning">借阅中</el-tag>
                   <el-tag v-else type="success">已归还</el-tag>
                 </template>
               </el-table-column>
               <el-table-column label="操作" width="120">
                 <template #default="{ row }">
                   <el-button
-                    v-if="row.status === 0"
+                    v-if="row.status === 0 || isOverdue(row)"
                     size="small"
-                    type="success"
+                    :type="isOverdue(row) ? 'danger' : 'success'"
                     @click="handleReturnById(row.id)"
                   >
                     归还
@@ -185,17 +204,17 @@
           <el-table-column prop="returnDate" label="归还日期" width="120" />
           <el-table-column label="状态" width="100">
             <template #default="{ row }">
-              <el-tag v-if="row.status === 0" type="warning">借阅中</el-tag>
-              <el-tag v-else-if="row.status === 1" type="success">已归还</el-tag>
-              <el-tag v-else type="danger">已过期</el-tag>
+              <el-tag v-if="isOverdue(row)" type="danger">逾期</el-tag>
+              <el-tag v-else-if="row.status === 0" type="warning">借阅中</el-tag>
+              <el-tag v-else type="success">已归还</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="100" fixed="right">
             <template #default="{ row }">
               <el-button
-                v-if="row.status === 0"
+                v-if="row.status === 0 || isOverdue(row)"
                 size="small"
-                type="success"
+                :type="isOverdue(row) ? 'danger' : 'success'"
                 @click="handleReturnById(row.id)"
               >
                 归还
@@ -208,7 +227,7 @@
           <el-pagination
             v-model:current-page="pageNum"
             v-model:page-size="pageSize"
-            :total="total"
+            :total="allRecords.length"
             :page-sizes="[10, 20, 50]"
             layout="total, sizes, prev, pager, next, jumper"
             @current-change="fetchAllRecords"
@@ -221,7 +240,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { borrowBook, returnBook, getMyBorrows, getAllBorrows } from '@/api/borrow'
 import { searchBooks } from '@/api/book'
@@ -255,6 +274,27 @@ const pageNum = ref(1)
 const pageSize = ref(10)
 const bookDetailCache = ref({})
 const statusFilter = ref(null)
+
+// 判断是否逾期
+const isOverdue = (record) => {
+  if (!record.dueDate || record.status === 1) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const due = new Date(record.dueDate)
+  return due < today
+}
+
+// 逾期记录列表
+const overdueRecords = computed(() => {
+  return records.value.filter(isOverdue)
+})
+
+// 构建归还下拉选项标签
+const buildReturnOptionLabel = (record) => {
+  const overdue = isOverdue(record)
+  const overdueTag = overdue ? ' [逾期]' : ''
+  return `${record.bookTitle} (作者: ${record.bookAuthor || '未知'} | ISBN: ${record.bookIsbn || '无'} | 借阅: ${record.borrowDate} | 应还: ${record.dueDate})${overdueTag}`
+}
 
 const searchForBorrow = async (query) => {
   if (!query || query.trim() === '') {
@@ -332,8 +372,13 @@ const handleReturn = async () => {
 }
 
 const handleReturnById = async (id) => {
+  const record = (records.value || []).find(r => r.id === id) || (allRecords.value || []).find(r => r.id === id)
+  const isOverdueRecord = record && isOverdue(record)
+  const confirmMessage = isOverdueRecord
+    ? '该图书已逾期，确认归还吗？'
+    : '确认归还该图书吗？'
   try {
-    await ElMessageBox.confirm('确认归还该图书吗？', '提示', { type: 'warning' })
+    await ElMessageBox.confirm(confirmMessage, '提示', { type: 'warning' })
     await returnBook(id)
     ElMessage.success('归还成功')
     if (isAdmin) { fetchAllRecords() } else { fetchRecords() }

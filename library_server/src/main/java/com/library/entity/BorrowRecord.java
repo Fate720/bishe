@@ -1,6 +1,7 @@
 package com.library.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -58,5 +59,16 @@ public class BorrowRecord {
     @PreUpdate
     public void preUpdate() {
         updatedTime = LocalDateTime.now();
+    }
+
+    /**
+     * 判断是否逾期（客户端实时计算用）
+     */
+    @JsonIgnore
+    public boolean isOverdue() {
+        if (returnDate != null || status == 1) {
+            return false;
+        }
+        return dueDate != null && dueDate.isBefore(LocalDate.now());
     }
 }
