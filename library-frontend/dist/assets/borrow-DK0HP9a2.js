@@ -1,0 +1,1 @@
+import{r as o}from"./request-BAvCjlzI.js";function n(r){return o.get("/borrows/my",{params:r})}function e(r){return o.get("/borrows",{params:r})}function s(r){return o.post(`/borrows/${r}`)}function u(r){return o.put(`/borrows/return/${r}`)}export{n as a,s as b,e as g,u as r};
