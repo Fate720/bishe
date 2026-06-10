@@ -120,6 +120,7 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                    <mainClass>com.library.LibraryServerApplication</mainClass>
                 </configuration>
             </plugin>
             <plugin>

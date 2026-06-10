@@ -4,20 +4,18 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-import java.util.List;
-
 /**
- * 用户创建/更新请求 DTO
+ * User create/update request DTO
  */
 @Data
 public class UserRequest {
     private Long id;
 
-    @NotBlank(message = "用户名不能为空")
-    @Size(min = 3, max = 20, message = "用户名长度必须在3-20个字符之间")
+    @NotBlank(message = "Username cannot be empty")
+    @Size(min = 3, max = 20, message = "Username must be 3-20 characters")
     private String username;
 
-    @Size(min = 6, max = 100, message = "密码长度不能少于6个字符")
+    @Size(min = 6, max = 100, message = "Password must be at least 6 characters")
     private String password;
 
     private String email;
@@ -26,5 +24,5 @@ public class UserRequest {
 
     private Integer status;
 
-    private List<Long> roleIds;
+    private Long roleId;
 }

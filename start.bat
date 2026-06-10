@@ -1,31 +1,52 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul
-title 图书馆管理系统 - 一键启动
+title Library System - Start
 
 echo.
 echo ========================================
-echo     图书馆管理系统 一键启动
+echo     Library System - Start
 echo ========================================
 echo.
 
 cd /d "%~dp0"
 
-echo [1/2] 启动后端服务 (Spring Boot)...
-start "图书馆-后端" /D "%~dp0library_server" cmd /k "mvnw.cmd spring-boot:run -s .mvn/settings.xml"
-echo        后端正在启动，预计 30 秒...
+echo Stopping any existing services...
+echo.
 
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8080.*LISTENING"') do (
+    echo Killing backend process PID %%a ...
+    taskkill /F /PID %%a >nul 2>&1
+)
+
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3000.*LISTENING"') do (
+    echo Killing frontend process PID %%a ...
+    taskkill /F /PID %%a >nul 2>&1
+)
+
+taskkill /F /IM node.exe >nul 2>&1
+taskkill /F /IM java.exe >nul 2>&1
+
+timeout /t 2 /nobreak >nul
+
+echo.
+echo [1/2] Starting backend...
+cd "%~dp0library_server"
+start "Lib Backend" cmd /k "title Lib Backend && java -jar target\Library_server-0.0.1-SNAPSHOT.jar"
+cd ..\..
 timeout /t 5 /nobreak >nul
 
-echo [2/2] 启动前端服务 (Vite)...
-start "图书馆-前端" /D "%~dp0library-frontend" cmd /k "npm run dev"
+echo [2/2] Starting frontend...
+cd "%~dp0library-frontend"
+start "Lib Frontend" cmd /k "title Lib Frontend && npm run dev"
 
 echo.
 echo ========================================
-echo   后端: http://localhost:8080
-echo   前端: http://localhost:3000
-echo   文档: http://localhost:8080/doc.html
+echo   Backend:   http://localhost:8080
+echo   Frontend:  http://localhost:3000
+echo   Swagger:   http://localhost:8080/doc.html
 echo ========================================
 echo.
-echo 启动完成！请打开浏览器访问 http://localhost:3000
-echo 按任意键关闭此窗口...
+echo Startup complete!
+echo To stop: double-click stop.bat
+echo.
 pause >nul

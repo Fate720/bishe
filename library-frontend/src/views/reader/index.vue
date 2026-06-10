@@ -15,9 +15,12 @@
         <el-table-column prop="username" label="用户名" />
         <el-table-column label="角色" width="150">
           <template #default="{ row }">
-            <el-tag v-for="role in row.roles" :key="role.id" size="small" style="margin-right: 5px">
-              {{ role.roleName }}
-            </el-tag>
+            <template v-if="row.roles && row.roles.length > 0">
+              <el-tag v-for="role in row.roles" :key="role.id" size="small" style="margin-right: 5px">
+                {{ role.roleName }}
+              </el-tag>
+            </template>
+            <span v-else style="color: #999;">未分配</span>
           </template>
         </el-table-column>
         <el-table-column prop="email" label="邮箱" />
@@ -53,7 +56,7 @@
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑读者' : '新增读者'" width="600px">
       <el-form :model="form" :rules="rules" ref="formRef" label-width="80px">
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" :disabled="isEdit" />
+          <el-input v-model="form.username" />
         </el-form-item>
         <el-form-item label="密码" prop="password" v-if="!isEdit">
           <el-input v-model="form.password" type="password" show-password />
@@ -64,8 +67,8 @@
         <el-form-item label="电话" prop="phone">
           <el-input v-model="form.phone" />
         </el-form-item>
-        <el-form-item label="角色" prop="roleIds">
-          <el-select v-model="form.roleIds" multiple placeholder="请选择角色" style="width: 100%">
+        <el-form-item label="角色" prop="roleId">
+          <el-select v-model="form.roleId" placeholder="请选择角色" style="width: 100%">
             <el-option
               v-for="role in roleList"
               :key="role.id"
@@ -113,7 +116,7 @@ const form = reactive({
   email: '',
   phone: '',
   status: 1,
-  roleIds: []
+  roleId: null
 })
 
 const rules = {
@@ -148,14 +151,14 @@ const fetchRoles = async () => {
 
 const handleAdd = () => {
   isEdit.value = false
-  Object.assign(form, { id: null, username: '', password: '', email: '', phone: '', status: 1, roleIds: [] })
+  Object.assign(form, { id: null, username: '', password: '', email: '', phone: '', status: 1, roleId: null })
   dialogVisible.value = true
 }
 
 const handleEdit = (row) => {
   isEdit.value = true
-  const roleIds = row.roles ? row.roles.map(r => r.id) : []
-  Object.assign(form, { ...row, password: '', roleIds })
+  const roleId = (row.roles && row.roles.length > 0) ? row.roles[0].id : null
+  Object.assign(form, { ...row, password: '', roleId: roleId })
   dialogVisible.value = true
 }
 
@@ -166,9 +169,8 @@ const handleSubmit = async () => {
     if (valid) {
       submitLoading.value = true
       try {
-        // 编辑模式下，空密码不传给后端
         const submitData = { ...form }
-        if (isEdit.value && !submitData.password) {
+        if (isEdit.value && (!submitData.password || submitData.password.trim() === '')) {
           delete submitData.password
         }
         if (isEdit.value) {
@@ -191,8 +193,8 @@ const handleSubmit = async () => {
 
 const handleDelete = async (row) => {
   try {
-    await ElMessageBox.confirm('确定要删除该读者吗？', '提示', {
-      type: 'warning'
+    await ElMessageBox.confirm('确定要删除该读者吗？该读者如果有未归还的图书将无法删除。', '提示', {
+      type: 'warning',
     })
     await deleteUser(row.id)
     ElMessage.success('删除成功')

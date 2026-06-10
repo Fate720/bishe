@@ -18,45 +18,45 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
-@Tag(name = "用户管理", description = "用户增删改查接口")
+@Tag(name = "User Management", description = "User CRUD")
 public class UserController {
     
     private final UserService userService;
     
     @GetMapping
-    @Operation(summary = "分页查询用户")
+    @Operation(summary = "Page query users")
     @PreAuthorize("hasRole('ADMIN')")
     public Result<Page<User>> list(@PageableDefault(size = 10) Pageable pageable) {
         return Result.success(userService.listUsers(pageable));
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "获取用户详情")
+    @Operation(summary = "Get user details")
     @PreAuthorize("isAuthenticated()")
     public Result<User> get(@PathVariable Long id) {
         return Result.success(userService.getUserById(id));
     }
 
     @PostMapping
-    @Operation(summary = "创建用户")
+    @Operation(summary = "Create user")
     @PreAuthorize("hasRole('ADMIN')")
     public Result<User> create(@Validated @RequestBody UserRequest request) {
         User user = new User();
         BeanUtils.copyProperties(request, user);
-        return Result.success(userService.createUser(user, request.getRoleIds()));
+        return Result.success(userService.createUser(user, request.getRoleId()));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "更新用户")
+    @Operation(summary = "Update user")
     @PreAuthorize("hasRole('ADMIN')")
     public Result<User> update(@PathVariable Long id, @Validated @RequestBody UserRequest request) {
         User user = new User();
         BeanUtils.copyProperties(request, user);
-        return Result.success(userService.updateUser(id, user, request.getRoleIds()));
+        return Result.success(userService.updateUser(id, user, request.getRoleId()));
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "删除用户")
+    @Operation(summary = "Delete user")
     @PreAuthorize("hasRole('ADMIN')")
     public Result<Void> delete(@PathVariable Long id) {
         userService.deleteUser(id);
